@@ -12,3 +12,6 @@ provider "golinks" {
 
 data "golinks_links" "all" {}
 
+output "golinks" {
+  value = data.golinks_links.all
+}
