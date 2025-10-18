@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/panoplytechnology/golinks-client-go"
 )
 
@@ -59,6 +60,9 @@ func (p *golinksProvider) Schema(_ context.Context, _ provider.SchemaRequest, re
 
 // Configure prepares a golinks API client for data sources and resources.
 func (p *golinksProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+
+	tflog.Info(ctx, "Configuring GoLinks client")
+
 	// Retrieve provider data from configuration var config golinksProviderModel
 	var config golinksProviderModel
 	diags := req.Config.Get(ctx, &config)
@@ -109,6 +113,10 @@ func (p *golinksProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
+	ctx = tflog.SetField(ctx, "golinks_token", token)
+	ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "golinks_token")
+	tflog.Debug(ctx, "Creating GoLinks client")
+
 	// Create a new GoLinks client using the configuration values
 	client, err := golinks.NewClient(&token)
 	if err != nil {
@@ -125,6 +133,8 @@ func (p *golinksProvider) Configure(ctx context.Context, req provider.ConfigureR
 	// type Configure methods.
 	resp.DataSourceData = client
 	resp.ResourceData = client
+
+	tflog.Info(ctx, "Configured GoLinks client", map[string]any{"success": true})
 }
 
 // DataSources defines the data sources implemented in the provider.
