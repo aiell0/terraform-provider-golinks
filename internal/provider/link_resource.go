@@ -2,13 +2,16 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/panoplytechnology/golinks-client-go"
 )
 
@@ -25,9 +28,10 @@ type linkResource struct {
 
 // golinkResourceModel maps the resource schema data.
 type linkResourceModel struct {
-	ID  types.String `tfsdk:"id"`
-	Gid types.Int64  `tfsdk:"gid"`
-	Cid types.Int64  `tfsdk:"cid"`
+	ID          types.String `tfsdk:"id"`
+	Gid         types.Int64  `tfsdk:"gid"`
+	Cid         types.Int64  `tfsdk:"cid"`
+	LastUpdated types.String `tfsdk:"last_updated"`
 	// User         UserModel         `tfsdk:"user"`
 	URL          types.String `tfsdk:"url"`
 	Name         types.String `tfsdk:"name"`
@@ -44,21 +48,6 @@ type linkResourceModel struct {
 	Geolinks   []GeolinkModel `tfsdk:"geolinks"`
 	CreatedAt  types.Int64    `tfsdk:"created_at"`
 	UpdatedAt  types.Int64    `tfsdk:"updated_at"`
-}
-
-type createLinkModel struct {
-	ID           types.String `tfsdk:"id"`
-	Gid          types.Int64  `tfsdk:"gid"`
-	Cid          types.Int64  `tfsdk:"cid"`
-	URL          types.String `tfsdk:"url"`
-	Name         types.String `tfsdk:"name"`
-	Description  types.String `tfsdk:"description"`
-	Tags         []TagModel   `tfsdk:"tags"`
-	Unlisted     types.Int64  `tfsdk:"unlisted"`
-	VariableLink types.Int64  `tfsdk:"variable_link"`
-	Pinned       types.Int64  `tfsdk:"pinned"`
-	CreatedAt    types.Int64  `tfsdk:"created_at"`
-	UpdatedAt    types.Int64  `tfsdk:"updated_at"`
 }
 
 type UserModel struct {
@@ -109,6 +98,9 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"gid": schema.Int64Attribute{
 				Computed:    true,
 				Description: "The GoLink ID returned by the API.",
+			},
+			"last_updated": schema.StringAttribute{
+				Computed: true,
 			},
 			"cid": schema.Int64Attribute{
 				Computed:    true,
@@ -362,8 +354,8 @@ func (r *linkResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	linkresponse, err := r.client.GetLink(state.Gid.ValueInt64())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating link",
-			"Could not create link, unexpected error: "+err.Error(),
+			"Error retrieving link",
+			"Could not ge link, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -406,10 +398,111 @@ func (r *linkResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	// Retrieve values from plan
+	var plan linkResourceModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var link golinks.CreateLink
+	// link.Uid = plan.User.Uid.ValueInt64()
+	link.Gid = "675347"
+	link.URL = plan.URL.ValueString()
+	link.Name = plan.Name.ValueString()
+	link.Description = plan.Description.ValueString()
+
+	// Log the link structure
+	linkJSON, _ := json.MarshalIndent(link, "", "  ")
+	tflog.Debug(ctx, "CreateLink structure", map[string]interface{}{
+		"link": string(linkJSON),
+	})
+
+	// Generate API request body from plan
+	// var tags []golinks.Tag
+	// for _, t := range plan.Tags {
+	// 	tags = append(tags, golinks.Tag{
+	// 		Tid:  t.Tid.ValueInt64(),
+	// 		Name: t.Name.String(),
+	// 	})
+	// }
+	//
+	// var aliases []string
+	// if !plan.Aliases.IsNull() && !plan.Aliases.IsUnknown() {
+	// 	diags := plan.Aliases.ElementsAs(ctx, &aliases, false)
+	// 	resp.Diagnostics.Append(diags...)
+	// 	if resp.Diagnostics.HasError() {
+	// 		return
+	// 	}
+	// }
+	//
+	// var geolinks []golinks.Geolink
+	// for _, gl := range plan.Geolinks {
+	// 	geolinks = append(geolinks, golinks.Geolink{
+	// 		Location: gl.Location,
+	// 		URL:      gl.URL,
+	// 	})
+	// }
+
+	// Update link
+	_, err := r.client.UpdateLink(link)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Updating Golink",
+			"Could not update link, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	linkresponse, err := r.client.GetLink(plan.Gid.ValueInt64())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error retrieving link",
+			"Could not get link, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	plan.ID = types.StringValue(strconv.FormatInt(linkresponse.Gid, 10))
+	plan.Gid = types.Int64Value(linkresponse.Gid)
+	plan.Cid = types.Int64Value(linkresponse.Cid)
+	plan.URL = types.StringValue(linkresponse.URL)
+	plan.Name = types.StringValue(linkresponse.Name)
+	plan.Description = types.StringValue(linkresponse.Description)
+	plan.Unlisted = types.Int64Value(linkresponse.Unlisted)
+	plan.VariableLink = types.Int64Value(linkresponse.VariableLink)
+	plan.Pinned = types.Int64Value(linkresponse.Pinned)
+	plan.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
+	plan.UpdatedAt = types.Int64Value(linkresponse.UpdatedAt)
+
+	plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
+
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 // Delete deletes the resource and removes the Terraform state on success.
 func (r *linkResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state linkResourceModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Delete existing order
+	err := r.client.DeleteLink(state.Gid.ValueInt64())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Deleting Golink",
+			"Could not delete link, unexpected error: "+err.Error(),
+		)
+		return
+	}
 }
 
 // Configure adds the provider configured client to the resource.

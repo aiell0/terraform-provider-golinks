@@ -16,7 +16,7 @@ provider "golinks" {
 resource "golinks_link" "this" {
   name        = "tftest"
   url         = "https://google.com"
-  description = "This is a test link"
+  description = "Update this"
 }
 
 # output "golinks" {
