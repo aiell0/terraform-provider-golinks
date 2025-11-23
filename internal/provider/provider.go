@@ -138,7 +138,6 @@ func (p *golinksProvider) Configure(ctx context.Context, req provider.ConfigureR
 }
 
 // DataSources defines the data sources implemented in the provider.
-// DataSources defines the data sources implemented in the provider.
 func (p *golinksProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewLinksDataSource,
@@ -147,5 +146,7 @@ func (p *golinksProvider) DataSources(_ context.Context) []func() datasource.Dat
 
 // Resources defines the resources implemented in the provider.
 func (p *golinksProvider) Resources(_ context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewLinkResource,
+	}
 }
