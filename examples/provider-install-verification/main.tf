@@ -14,9 +14,9 @@ provider "golinks" {
 # data "golinks_links" "all" {}
 
 resource "golinks_link" "this" {
-  name        = "tftest"
+  name        = "tftest2"
   url         = "https://google.com"
-  description = "Update this"
+  description = "Update this againagain"
 }
 
 # output "golinks" {

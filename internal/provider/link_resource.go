@@ -317,6 +317,7 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	plan.Pinned = types.Int64Value(linkresponse.Pinned)
 	plan.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
 	plan.UpdatedAt = types.Int64Value(linkresponse.UpdatedAt)
+	plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	// plan.User = UserModel{
 	// 	Uid:          types.Int64Value(linkresponse.User.Uid),
 	// 	firstName:    types.StringValue(linkresponse.User.FirstName),
@@ -406,9 +407,16 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
+	var state linkResourceModel
+	diags = req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	var link golinks.CreateLink
 	// link.Uid = plan.User.Uid.ValueInt64()
-	link.Gid = "675347"
+	link.Gid = state.Gid.ValueInt64()
 	link.URL = plan.URL.ValueString()
 	link.Name = plan.Name.ValueString()
 	link.Description = plan.Description.ValueString()
@@ -418,6 +426,7 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	tflog.Debug(ctx, "CreateLink structure", map[string]interface{}{
 		"link": string(linkJSON),
 	})
+	tflog.Debug(ctx, strconv.FormatInt(plan.Gid.ValueInt64(), 10))
 
 	// Generate API request body from plan
 	// var tags []golinks.Tag
@@ -455,7 +464,7 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	linkresponse, err := r.client.GetLink(plan.Gid.ValueInt64())
+	linkresponse, err := r.client.GetLink(state.Gid.ValueInt64())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error retrieving link",
