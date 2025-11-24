@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
@@ -17,8 +18,9 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &linkResource{}
-	_ resource.ResourceWithConfigure = &linkResource{}
+	_ resource.Resource                = &linkResource{}
+	_ resource.ResourceWithConfigure   = &linkResource{}
+	_ resource.ResourceWithImportState = &linkResource{}
 )
 
 // linksResource is the resource implementation.
@@ -352,11 +354,11 @@ func (r *linkResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	linkresponse, err := r.client.GetLink(state.Gid.ValueInt64())
+	linkresponse, err := r.client.GetLink(state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error retrieving link",
-			"Could not ge link, unexpected error: "+err.Error(),
+			"Could not get link, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -464,7 +466,7 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	linkresponse, err := r.client.GetLink(state.Gid.ValueInt64())
+	linkresponse, err := r.client.GetLink(state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error retrieving link",
@@ -512,6 +514,11 @@ func (r *linkResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		)
 		return
 	}
+}
+
+func (r *linkResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// Retrieve import ID and save to id attribute
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
 // Configure adds the provider configured client to the resource.
