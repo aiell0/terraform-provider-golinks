@@ -18,6 +18,8 @@ resource "golinks_link" "this" {
   url         = "https://google.com"
   description = "Update this againagain"
   unlisted    = false
+  public      = false
+  private     = false
 }
 
 # output "golinks" {

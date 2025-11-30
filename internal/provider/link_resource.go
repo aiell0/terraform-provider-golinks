@@ -13,7 +13,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -37,21 +38,21 @@ type linkResourceModel struct {
 	Cid         types.Int64  `tfsdk:"cid"`
 	LastUpdated types.String `tfsdk:"last_updated"`
 	// User         UserModel         `tfsdk:"user"`
-	URL          types.String `tfsdk:"url"`
-	Name         types.String `tfsdk:"name"`
-	Description  types.String `tfsdk:"description"`
-	Tags         []TagModel   `tfsdk:"tags"`
-	Unlisted     types.Bool   `tfsdk:"unlisted"`
-	Private      types.Int64  `tfsdk:"private"`
-	Public       types.Int64  `tfsdk:"public"`
-	VariableLink types.Int64  `tfsdk:"variable_link"`
-	Pinned       types.Int64  `tfsdk:"pinned"`
+	URL         types.String `tfsdk:"url"`
+	Name        types.String `tfsdk:"name"`
+	Description types.String `tfsdk:"description"`
+	Tags        []TagModel   `tfsdk:"tags"`
+	Unlisted    types.Bool   `tfsdk:"unlisted"`
+	Private     types.Bool   `tfsdk:"private"`
+	Public      types.Bool   `tfsdk:"public"`
+	// VariableLink types.Int64  `tfsdk:"variable_link"`
+	// Pinned       types.Int64  `tfsdk:"pinned"`
 	// RedirectHits RedirectHitsModel `tfsdk:"redirect_hits"`
-	Aliases    types.List     `tfsdk:"aliases"`
-	Multilinks types.List     `tfsdk:"multilinks"`
-	Geolinks   []GeolinkModel `tfsdk:"geolinks"`
-	CreatedAt  types.Int64    `tfsdk:"created_at"`
-	UpdatedAt  types.Int64    `tfsdk:"updated_at"`
+	Aliases types.List `tfsdk:"aliases"`
+	// Multilinks types.List     `tfsdk:"multilinks"`
+	Geolinks  []GeolinkModel `tfsdk:"geolinks"`
+	CreatedAt types.Int64    `tfsdk:"created_at"`
+	UpdatedAt types.Int64    `tfsdk:"updated_at"`
 }
 
 type UserModel struct {
@@ -165,30 +166,33 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "If true, the link is unlisted. If false (default), shared with everyone in your organization.",
 				Default:     booldefault.StaticBool(false),
 			},
-			"private": schema.Int64Attribute{
+			"private": schema.BoolAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "If 1, the link is private. Links cannot change to or from private after creation.",
-				Default:     int64default.StaticInt64(0),
+				Description: "If true, the link is private. Links cannot change to or from private after creation.",
+				Default:     booldefault.StaticBool(false),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
 			},
-			"public": schema.Int64Attribute{
+			"public": schema.BoolAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "If 1, the link can be accessed by people outside of your organization.",
-				Default:     int64default.StaticInt64(0),
+				Description: "If true, the link can be accessed by people outside of your organization.",
+				Default:     booldefault.StaticBool(true),
 			},
-			"variable_link": schema.Int64Attribute{
-				Optional:    true,
-				Computed:    true,
-				Description: "Denotes if the link is a variable link.",
-				Default:     int64default.StaticInt64(0),
-			},
-			"pinned": schema.Int64Attribute{
-				Optional:    true,
-				Computed:    true,
-				Description: "Denotes if the link is pinned to the top of your GoLinks feed.",
-				Default:     int64default.StaticInt64(0),
-			},
+			// "variable_link": schema.Int64Attribute{
+			// 	Optional:    true,
+			// 	Computed:    true,
+			// 	Description: "Denotes if the link is a variable link.",
+			// 	Default:     int64default.StaticInt64(0),
+			// },
+			// "pinned": schema.Int64Attribute{
+			// 	Optional:    true,
+			// 	Computed:    true,
+			// 	Description: "Denotes if the link is pinned to the top of your GoLinks feed.",
+			// 	Default:     int64default.StaticInt64(0),
+			// },
 			// "redirect_hits": schema.ListNestedAttribute{
 			// 	Computed:    true,
 			// 	Description: "The number of redirects for the golink.",
@@ -218,11 +222,11 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				ElementType: types.StringType,
 				Description: "Create multiple names for the same link with aliases.",
 			},
-			"multilinks": schema.ListAttribute{
-				Optional:    true,
-				ElementType: types.StringType,
-				Description: "The list of target links if the link is a multi link.",
-			},
+			// "multilinks": schema.ListAttribute{
+			// 	Optional:    true,
+			// 	ElementType: types.StringType,
+			// 	Description: "The list of target links if the link is a multi link.",
+			// },
 			"geolinks": schema.ListNestedAttribute{
 				Optional:    true,
 				Description: "Create different destinations for a link depending on current location.",
@@ -251,6 +255,14 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 	}
 }
 
+func IntToBool(i int32, o *bool) {
+	if i == 1 {
+		*o = true
+	} else {
+		*o = false
+	}
+}
+
 // Create a new resource.
 func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	// Retrieve values from plan
@@ -273,8 +285,20 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	} else {
 		link.Unlisted = 0
 	}
-	link.Private = plan.Private.ValueInt64()
-	link.Public = plan.Public.ValueInt64()
+	private := plan.Private.ValueBool()
+	if private {
+		link.Private = 1
+	} else {
+		link.Private = 0
+	}
+	public := plan.Public.ValueBool()
+	if public {
+		link.Public = 1
+	} else {
+		link.Public = 0
+	}
+	// link.Private = plan.Private.ValueInt64()
+	// link.Public = plan.Public.ValueInt64()
 	link.Format = 0
 	link.Hyphens = 0
 
@@ -321,14 +345,15 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	plan.URL = types.StringValue(linkresponse.URL)
 	plan.Name = types.StringValue(linkresponse.Name)
 	plan.Description = types.StringValue(linkresponse.Description)
-	unlistedint := linkresponse.Unlisted
-	if unlistedint == 1 {
-		plan.Unlisted = types.BoolValue(true)
-	} else {
-		plan.Unlisted = types.BoolValue(false)
-	}
-	plan.VariableLink = types.Int64Value(linkresponse.VariableLink)
-	plan.Pinned = types.Int64Value(linkresponse.Pinned)
+	// unlistedint := linkresponse.Unlisted
+	// if unlistedint == 1 {
+	// 	plan.Unlisted = types.BoolValue(true)
+	// } else {
+	// 	plan.Unlisted = types.BoolValue(false)
+	// }
+	IntToBool(linkresponse.Unlisted, plan.Unlisted.ValueBoolPointer())
+	// plan.VariableLink = types.Int64Value(linkresponse.VariableLink)
+	// plan.Pinned = types.Int64Value(linkresponse.Pinned)
 	plan.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
 	plan.UpdatedAt = types.Int64Value(linkresponse.UpdatedAt)
 	plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
@@ -382,14 +407,15 @@ func (r *linkResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.URL = types.StringValue(linkresponse.URL)
 	state.Name = types.StringValue(linkresponse.Name)
 	state.Description = types.StringValue(linkresponse.Description)
-	unlistedint := linkresponse.Unlisted
-	if unlistedint == 1 {
-		state.Unlisted = types.BoolValue(true)
-	} else {
-		state.Unlisted = types.BoolValue(false)
-	}
-	state.VariableLink = types.Int64Value(linkresponse.VariableLink)
-	state.Pinned = types.Int64Value(linkresponse.Pinned)
+	// unlistedint := linkresponse.Unlisted
+	// if unlistedint == 1 {
+	// 	state.Unlisted = types.BoolValue(true)
+	// } else {
+	// 	state.Unlisted = types.BoolValue(false)
+	// }
+	IntToBool(linkresponse.Unlisted, state.Unlisted.ValueBoolPointer())
+	// state.VariableLink = types.Int64Value(linkresponse.VariableLink)
+	// state.Pinned = types.Int64Value(linkresponse.Pinned)
 	state.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
 	state.UpdatedAt = types.Int64Value(linkresponse.UpdatedAt)
 	// plan.User = UserModel{
@@ -498,14 +524,15 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	plan.URL = types.StringValue(linkresponse.URL)
 	plan.Name = types.StringValue(linkresponse.Name)
 	plan.Description = types.StringValue(linkresponse.Description)
-	unlistedint := linkresponse.Unlisted
-	if unlistedint == 1 {
-		plan.Unlisted = types.BoolValue(true)
-	} else {
-		plan.Unlisted = types.BoolValue(false)
-	}
-	plan.VariableLink = types.Int64Value(linkresponse.VariableLink)
-	plan.Pinned = types.Int64Value(linkresponse.Pinned)
+	// unlistedint := linkresponse.Unlisted
+	// if unlistedint == 1 {
+	// 	plan.Unlisted = types.BoolValue(true)
+	// } else {
+	// 	plan.Unlisted = types.BoolValue(false)
+	// }
+	IntToBool(linkresponse.Unlisted, state.Unlisted.ValueBoolPointer())
+	// plan.VariableLink = types.Int64Value(linkresponse.VariableLink)
+	// plan.Pinned = types.Int64Value(linkresponse.Pinned)
 	plan.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
 	plan.UpdatedAt = types.Int64Value(linkresponse.UpdatedAt)
 

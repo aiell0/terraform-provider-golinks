@@ -22,10 +22,10 @@ type CreateLink struct {
 	Description string    `json:"description,omitempty"`
 	Tags        []Tag     `json:"tags,omitempty"`
 	Unlisted    int32     `json:"unlisted,omitempty"`
-	Private     int64     `json:"private,omitempty"`
-	Public      int64     `json:"public,omitempty"`
-	Format      int64     `json:"format,omitempty"`
-	Hyphens     int64     `json:"hyphens,omitempty"`
+	Private     int32     `json:"private,omitempty"`
+	Public      int32     `json:"public,omitempty"`
+	Format      int32     `json:"format,omitempty"`
+	Hyphens     int32     `json:"hyphens,omitempty"`
 	Aliases     []string  `json:"aliases,omitempty"`
 	Geolinks    []Geolink `json:"geolinks,omitempty"`
 	CreatedAt   int64     `json:"created_at,omitempty"`
@@ -166,6 +166,8 @@ func (c *Client) CreateLink(link CreateLink) (*GolinkResponse, error) {
 		formData.Set("description", link.Description)
 	}
 	formData.Set("unlisted", strconv.Itoa(int(link.Unlisted)))
+	formData.Set("public", strconv.Itoa(int(link.Public)))
+	formData.Set("private", strconv.Itoa(int(link.Private)))
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/golinks", c.HostURL), strings.NewReader(formData.Encode()))
 	if err != nil {
