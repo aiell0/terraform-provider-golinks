@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/panoplytechnology/golinks-client-go"
+	"terraform-provider-golinks/internal/client"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -24,7 +24,7 @@ func NewLinksDataSource() datasource.DataSource {
 
 // linksDataSource is the data source implementation.
 type linksDataSource struct {
-	client *golinks.Client
+	client *client.Client
 }
 
 // Metadata returns the data source type name.
@@ -351,7 +351,7 @@ func (d *linksDataSource) Configure(_ context.Context, req datasource.ConfigureR
 		return
 	}
 
-	client, ok := req.ProviderData.(*golinks.Client)
+	client, ok := req.ProviderData.(*client.Client)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",

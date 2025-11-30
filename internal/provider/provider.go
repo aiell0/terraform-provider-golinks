@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/panoplytechnology/golinks-client-go"
+	"terraform-provider-golinks/internal/client"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -118,7 +118,7 @@ func (p *golinksProvider) Configure(ctx context.Context, req provider.ConfigureR
 	tflog.Debug(ctx, "Creating GoLinks client")
 
 	// Create a new GoLinks client using the configuration values
-	client, err := golinks.NewClient(&token)
+	client, err := client.NewClient(&token)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Create GoLinks API Client",

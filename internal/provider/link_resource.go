@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/panoplytechnology/golinks-client-go"
+	"terraform-provider-golinks/internal/client"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -25,7 +25,7 @@ var (
 
 // linksResource is the resource implementation.
 type linkResource struct {
-	client *golinks.Client
+	client *client.Client
 }
 
 // golinkResourceModel maps the resource schema data.
@@ -260,7 +260,7 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Generate API request body from plan
-	var link golinks.CreateLink
+	var link client.CreateLink
 	// link.Uid = plan.User.Uid.ValueInt64()
 	link.URL = plan.URL.ValueString()
 	link.Name = plan.Name.ValueString()
@@ -272,9 +272,9 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	link.Hyphens = 0
 
 	// Generate API request body from plan
-	var tags []golinks.Tag
+	var tags []client.Tag
 	for _, t := range plan.Tags {
-		tags = append(tags, golinks.Tag{
+		tags = append(tags, client.Tag{
 			Tid:  t.Tid.ValueInt64(),
 			Name: t.Name.String(),
 		})
@@ -289,9 +289,9 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 		}
 	}
 
-	var geolinks []golinks.Geolink
+	var geolinks []client.Geolink
 	for _, gl := range plan.Geolinks {
-		geolinks = append(geolinks, golinks.Geolink{
+		geolinks = append(geolinks, client.Geolink{
 			Location: gl.Location,
 			URL:      gl.URL,
 		})
@@ -416,7 +416,7 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	var link golinks.CreateLink
+	var link client.CreateLink
 	// link.Uid = plan.User.Uid.ValueInt64()
 	link.Gid = state.Gid.ValueInt64()
 	link.URL = plan.URL.ValueString()
@@ -529,7 +529,7 @@ func (r *linkResource) Configure(_ context.Context, req resource.ConfigureReques
 		return
 	}
 
-	client, ok := req.ProviderData.(*golinks.Client)
+	client, ok := req.ProviderData.(*client.Client)
 
 	if !ok {
 		resp.Diagnostics.AddError(
