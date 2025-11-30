@@ -34,14 +34,14 @@ resource "golinks_link" "test" {
 				),
 			},
 			// ImportState testing
-			// {
-			// 	ResourceName:      "golinks_link.test",
-			// 	ImportState:       true,
-			// 	ImportStateVerify: true,
-			// 	// The last_updated attribute does not exist in the HashiCups
-			// 	// API, therefore there is no value for it during import.
-			// 	ImportStateVerifyIgnore: []string{"last_updated"},
-			// },
+			{
+				ResourceName:      "golinks_link.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				// The last_updated attribute does not exist in the Golinks
+				// API, therefore there is no value for it during import.
+				ImportStateVerifyIgnore: []string{"last_updated", "private", "public"},
+			},
 			// Update and Read testing
 			{
 				Config: providerConfig + `
