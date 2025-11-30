@@ -14,17 +14,8 @@ func TestLinksDataSource(t *testing.T) {
 			{
 				Config: providerConfig + `data "golinks_links" "test" {}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify number of coffees returned
+					// Verify number of links returned
 					resource.TestCheckResourceAttr("data.golinks_links.test", "results.#", "50"),
-					// Verify the first coffee to ensure all attributes are set
-					// resource.TestCheckResourceAttr("data.golinks_links.test", "coffees.0.description", ""),
-					// resource.TestCheckResourceAttr("data.golinks_links.test", "coffees.0.id", "1"),
-					// resource.TestCheckResourceAttr("data.golinks_links.test", "coffees.0.image", "/hashicorp.png"),
-					// resource.TestCheckResourceAttr("data.golinks_links.test", "coffees.0.ingredients.#", "1"),
-					// resource.TestCheckResourceAttr("data.golinks_links.test", "coffees.0.ingredients.0.id", "6"),
-					// resource.TestCheckResourceAttr("data.golinks_links.test", "coffees.0.name", "HCP Aeropress"),
-					// resource.TestCheckResourceAttr("data.golinks_links.test", "coffees.0.price", "200"),
-					// resource.TestCheckResourceAttr("data.golinks_links.test", "coffees.0.teaser", "Automation in a cup"),
 				),
 			},
 		},
