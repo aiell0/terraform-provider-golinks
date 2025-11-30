@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -40,7 +41,7 @@ type linkResourceModel struct {
 	Name         types.String `tfsdk:"name"`
 	Description  types.String `tfsdk:"description"`
 	Tags         []TagModel   `tfsdk:"tags"`
-	Unlisted     types.Int64  `tfsdk:"unlisted"`
+	Unlisted     types.Bool   `tfsdk:"unlisted"`
 	Private      types.Int64  `tfsdk:"private"`
 	Public       types.Int64  `tfsdk:"public"`
 	VariableLink types.Int64  `tfsdk:"variable_link"`
@@ -158,11 +159,11 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				ElementType: types.StringType,
 				Description: "Organize your golinks and find the right ones quickly with tags.",
 			},
-			"unlisted": schema.Int64Attribute{
+			"unlisted": schema.BoolAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "If 1, the link is unlisted. If 0 (default), shared with everyone in your organization.",
-				Default:     int64default.StaticInt64(0),
+				Description: "If true, the link is unlisted. If false (default), shared with everyone in your organization.",
+				Default:     booldefault.StaticBool(false),
 			},
 			"private": schema.Int64Attribute{
 				Optional:    true,
@@ -266,7 +267,12 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	link.URL = plan.URL.ValueString()
 	link.Name = plan.Name.ValueString()
 	link.Description = plan.Description.ValueString()
-	link.Unlisted = plan.Unlisted.ValueInt64()
+	unlisted := plan.Unlisted.ValueBool()
+	if unlisted {
+		link.Unlisted = 1
+	} else {
+		link.Unlisted = 0
+	}
 	link.Private = plan.Private.ValueInt64()
 	link.Public = plan.Public.ValueInt64()
 	link.Format = 0
@@ -315,7 +321,12 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	plan.URL = types.StringValue(linkresponse.URL)
 	plan.Name = types.StringValue(linkresponse.Name)
 	plan.Description = types.StringValue(linkresponse.Description)
-	plan.Unlisted = types.Int64Value(linkresponse.Unlisted)
+	unlistedint := linkresponse.Unlisted
+	if unlistedint == 1 {
+		plan.Unlisted = types.BoolValue(true)
+	} else {
+		plan.Unlisted = types.BoolValue(false)
+	}
 	plan.VariableLink = types.Int64Value(linkresponse.VariableLink)
 	plan.Pinned = types.Int64Value(linkresponse.Pinned)
 	plan.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
@@ -371,7 +382,12 @@ func (r *linkResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.URL = types.StringValue(linkresponse.URL)
 	state.Name = types.StringValue(linkresponse.Name)
 	state.Description = types.StringValue(linkresponse.Description)
-	state.Unlisted = types.Int64Value(linkresponse.Unlisted)
+	unlistedint := linkresponse.Unlisted
+	if unlistedint == 1 {
+		state.Unlisted = types.BoolValue(true)
+	} else {
+		state.Unlisted = types.BoolValue(false)
+	}
 	state.VariableLink = types.Int64Value(linkresponse.VariableLink)
 	state.Pinned = types.Int64Value(linkresponse.Pinned)
 	state.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
@@ -482,7 +498,12 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	plan.URL = types.StringValue(linkresponse.URL)
 	plan.Name = types.StringValue(linkresponse.Name)
 	plan.Description = types.StringValue(linkresponse.Description)
-	plan.Unlisted = types.Int64Value(linkresponse.Unlisted)
+	unlistedint := linkresponse.Unlisted
+	if unlistedint == 1 {
+		plan.Unlisted = types.BoolValue(true)
+	} else {
+		plan.Unlisted = types.BoolValue(false)
+	}
 	plan.VariableLink = types.Int64Value(linkresponse.VariableLink)
 	plan.Pinned = types.Int64Value(linkresponse.Pinned)
 	plan.CreatedAt = types.Int64Value(linkresponse.CreatedAt)

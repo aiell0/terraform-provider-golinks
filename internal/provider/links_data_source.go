@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"terraform-provider-golinks/internal/client"
+
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"terraform-provider-golinks/internal/client"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -62,7 +63,7 @@ type golinkModel struct {
 	Name         types.String `tfsdk:"name"`
 	Description  types.String `tfsdk:"description"`
 	Tags         []tagModel   `tfsdk:"tags"`
-	Unlisted     types.Int64  `tfsdk:"unlisted"`
+	Unlisted     types.Int32  `tfsdk:"unlisted"`
 	VariableLink types.Int64  `tfsdk:"variable_link"`
 	Pinned       types.Int64  `tfsdk:"pinned"`
 	RedirectHits types.Object `tfsdk:"redirect_hits"`
@@ -316,7 +317,7 @@ func (d *linksDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 			URL:          types.StringValue(golink.URL),
 			Name:         types.StringValue(golink.Name),
 			Description:  types.StringValue(golink.Description),
-			Unlisted:     types.Int64Value(golink.Unlisted),
+			Unlisted:     types.Int32Value(golink.Unlisted),
 			VariableLink: types.Int64Value(golink.VariableLink),
 			Pinned:       types.Int64Value(golink.Pinned),
 			RedirectHits: redirectHitsObj,

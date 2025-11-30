@@ -21,7 +21,7 @@ type CreateLink struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description,omitempty"`
 	Tags        []Tag     `json:"tags,omitempty"`
-	Unlisted    int64     `json:"unlisted,omitempty"`
+	Unlisted    int32     `json:"unlisted,omitempty"`
 	Private     int64     `json:"private,omitempty"`
 	Public      int64     `json:"public,omitempty"`
 	Format      int64     `json:"format,omitempty"`
@@ -85,7 +85,7 @@ type GolinkResponse struct {
 	Name         string               `json:"name"`
 	Description  string               `json:"description"`
 	Tags         []TagResponse        `json:"tags"`
-	Unlisted     int64                `json:"unlisted"`
+	Unlisted     int32                `json:"unlisted"`
 	VariableLink int64                `json:"variable_link"`
 	Pinned       int64                `json:"pinned"`
 	RedirectHits RedirectHitsResponse `json:"redirect_hits"`
@@ -165,6 +165,7 @@ func (c *Client) CreateLink(link CreateLink) (*GolinkResponse, error) {
 	if link.Description != "" {
 		formData.Set("description", link.Description)
 	}
+	formData.Set("unlisted", strconv.Itoa(int(link.Unlisted)))
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/golinks", c.HostURL), strings.NewReader(formData.Encode()))
 	if err != nil {

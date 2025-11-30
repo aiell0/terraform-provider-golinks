@@ -17,6 +17,7 @@ resource "golinks_link" "this" {
   name        = "tftest2"
   url         = "https://google.com"
   description = "Update this againagain"
+  unlisted    = false
 }
 
 # output "golinks" {
