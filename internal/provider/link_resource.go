@@ -41,7 +41,7 @@ type linkResourceModel struct {
 	URL         types.String `tfsdk:"url"`
 	Name        types.String `tfsdk:"name"`
 	Description types.String `tfsdk:"description"`
-	Tags        []TagModel   `tfsdk:"tags"`
+	Tags        []string     `tfsdk:"tags"`
 	Unlisted    types.Bool   `tfsdk:"unlisted"`
 	Private     types.Bool   `tfsdk:"private"`
 	Public      types.Bool   `tfsdk:"public"`
@@ -111,38 +111,6 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				Description: "The Company ID.",
 			},
-			// "user": schema.ListNestedAttribute{
-			// 	Computed:    true,
-			// 	Description: "User information.",
-			// 	NestedObject: schema.NestedAttributeObject{
-			// 		Attributes: map[string]schema.Attribute{
-			// 			"uid": schema.Int64Attribute{
-			// 				Computed:    true,
-			// 				Description: "The unique user id.",
-			// 			},
-			// 			"first_name": schema.StringAttribute{
-			// 				Computed:    true,
-			// 				Description: "The first name of the user who owns the link (if found)",
-			// 			},
-			// 			"last_name": schema.StringAttribute{
-			// 				Computed:    true,
-			// 				Description: "The last name of the user who owns the link (if found)",
-			// 			},
-			// 			"username": schema.StringAttribute{
-			// 				Computed:    true,
-			// 				Description: "The username of the user who owns the link (if found)",
-			// 			},
-			// 			"email": schema.StringAttribute{
-			// 				Computed:    true,
-			// 				Description: "The email of the user who owns the link.",
-			// 			},
-			// 			"user_image_url": schema.StringAttribute{
-			// 				Computed:    true,
-			// 				Description: "The gravatar of the user who owns the link.",
-			// 			},
-			// 		},
-			// },
-			// },
 			"url": schema.StringAttribute{
 				Required:    true,
 				Description: "The destination URL.",
@@ -181,52 +149,11 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "If true, the link can be accessed by people outside of your organization.",
 				Default:     booldefault.StaticBool(true),
 			},
-			// "variable_link": schema.Int64Attribute{
-			// 	Optional:    true,
-			// 	Computed:    true,
-			// 	Description: "Denotes if the link is a variable link.",
-			// 	Default:     int64default.StaticInt64(0),
-			// },
-			// "pinned": schema.Int64Attribute{
-			// 	Optional:    true,
-			// 	Computed:    true,
-			// 	Description: "Denotes if the link is pinned to the top of your GoLinks feed.",
-			// 	Default:     int64default.StaticInt64(0),
-			// },
-			// "redirect_hits": schema.ListNestedAttribute{
-			// 	Computed:    true,
-			// 	Description: "The number of redirects for the golink.",
-			// 	NestedObject: schema.NestedAttributeObject{
-			// 		Attributes: map[string]schema.Attribute{
-			// 			"daily": schema.Int64Attribute{
-			// 				Computed:    true,
-			// 				Description: "The number of daily redirects for the golink.",
-			// 			},
-			// 			"weekly": schema.Int64Attribute{
-			// 				Computed:    true,
-			// 				Description: "The number of weekly redirects for the golink.",
-			// 			},
-			// 			"monthly": schema.Int64Attribute{
-			// 				Computed:    true,
-			// 				Description: "The number of monthly redirects for the golink.",
-			// 			},
-			// 			"alltime": schema.Int64Attribute{
-			// 				Computed:    true,
-			// 				Description: "The number of lifetime redirects for the golink.",
-			// 			},
-			// 		},
-			// 	},
-			// },
 			"aliases": schema.ListAttribute{
 				Optional:    true,
 				ElementType: types.StringType,
 				Description: "Create multiple names for the same link with aliases.",
 			},
-			// "multilinks": schema.ListAttribute{
-			// 	Optional:    true,
-			// 	ElementType: types.StringType,
-			// 	Description: "The list of target links if the link is a multi link.",
-			// },
 			"geolinks": schema.ListNestedAttribute{
 				Optional:    true,
 				Description: "Create different destinations for a link depending on current location.",
@@ -275,7 +202,6 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	// Generate API request body from plan
 	var link client.CreateLink
-	// link.Uid = plan.User.Uid.ValueInt64()
 	link.URL = plan.URL.ValueString()
 	link.Name = plan.Name.ValueString()
 	link.Description = plan.Description.ValueString()
@@ -297,19 +223,23 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	} else {
 		link.Public = 0
 	}
-	// link.Private = plan.Private.ValueInt64()
-	// link.Public = plan.Public.ValueInt64()
 	link.Format = 0
 	link.Hyphens = 0
 
-	// Generate API request body from plan
-	var tags []client.Tag
+	// var tags []TagModel
+	// for _, t := range plan.Tags {
+	// 	tags = append(tags, TagModel{
+	// 		Tid:  types.Int64Value(0), // can be anything
+	// 		Name: t.Name,
+	// 	})
+	// }
+	// link.Tags = tags
+
+	var tags []string
 	for _, t := range plan.Tags {
-		tags = append(tags, client.Tag{
-			Tid:  t.Tid.ValueInt64(),
-			Name: t.Name.String(),
-		})
+		tags = append(tags, t)
 	}
+	link.Tags = tags
 
 	var aliases []string
 	if !plan.Aliases.IsNull() && !plan.Aliases.IsUnknown() {
@@ -319,6 +249,7 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 			return
 		}
 	}
+	link.Aliases = aliases
 
 	var geolinks []client.Geolink
 	for _, gl := range plan.Geolinks {
@@ -327,6 +258,7 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 			URL:      gl.URL,
 		})
 	}
+	link.Geolinks = geolinks
 
 	// Create new link
 	linkresponse, err := r.client.CreateLink(link)
@@ -367,10 +299,7 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	// }
 	//
 	for index, tag := range linkresponse.Tags {
-		plan.Tags[index] = TagModel{
-			Tid:  types.Int64Value(tag.Tid),
-			Name: types.StringValue(tag.Name),
-		}
+		plan.Tags[index] = tag.Name
 	}
 
 	// Set state to fully populated data
@@ -427,12 +356,11 @@ func (r *linkResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	// 	UserImageUrl: types.StringValue(linkresponse.User.UserImageURL),
 	// }
 	//
-	for index, tag := range linkresponse.Tags {
-		state.Tags[index] = TagModel{
-			Tid:  types.Int64Value(tag.Tid),
-			Name: types.StringValue(tag.Name),
-		}
+	var tags []string
+	for _, tag := range linkresponse.Tags {
+		tags = append(tags, tag.Name)
 	}
+	state.Tags = tags
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, state)
@@ -465,6 +393,12 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	link.URL = plan.URL.ValueString()
 	link.Name = plan.Name.ValueString()
 	link.Description = plan.Description.ValueString()
+
+	var tags []string
+	for _, t := range plan.Tags {
+		tags = append(tags, t)
+	}
+	link.Tags = tags
 
 	// Log the link structure
 	linkJSON, _ := json.MarshalIndent(link, "", "  ")
@@ -537,6 +471,11 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	plan.UpdatedAt = types.Int64Value(linkresponse.UpdatedAt)
 
 	plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
+
+	for _, tag := range linkresponse.Tags {
+		tags = append(tags, tag.Name)
+	}
+	state.Tags = tags
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)

@@ -20,6 +20,7 @@ resource "golinks_link" "this" {
   unlisted    = false
   public      = false
   private     = false
+  # tags        = ["testing", "addme", "addanother"]
 }
 
 # output "golinks" {

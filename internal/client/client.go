@@ -20,7 +20,7 @@ type CreateLink struct {
 	URL         string    `json:"url"`
 	Name        string    `json:"name"`
 	Description string    `json:"description,omitempty"`
-	Tags        []Tag     `json:"tags,omitempty"`
+	Tags        []string  `json:"tags,omitempty"`
 	Unlisted    int32     `json:"unlisted,omitempty"`
 	Private     int32     `json:"private,omitempty"`
 	Public      int32     `json:"public,omitempty"`
@@ -37,10 +37,10 @@ type Geolink struct {
 	URL      string `json:"url"`
 }
 
-type Tag struct {
-	Tid  int64  `json:"tid,omitempty"`
-	Name string `json:"name"`
-}
+// type Tag struct {
+// 	Tid  int64  `json:"tid,omitempty"`
+// 	Name string `json:"name"`
+// }
 
 type Client struct {
 	HostURL    string
@@ -168,6 +168,12 @@ func (c *Client) CreateLink(link CreateLink) (*GolinkResponse, error) {
 	formData.Set("unlisted", strconv.Itoa(int(link.Unlisted)))
 	formData.Set("public", strconv.Itoa(int(link.Public)))
 	formData.Set("private", strconv.Itoa(int(link.Private)))
+	for _, alias := range link.Aliases {
+		formData.Add("aliases", alias)
+	}
+	for _, tag := range link.Tags {
+		formData.Add("tags[]", tag)
+	}
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/golinks", c.HostURL), strings.NewReader(formData.Encode()))
 	if err != nil {
@@ -197,6 +203,15 @@ func (c *Client) UpdateLink(link CreateLink) (*GolinkResponse, error) {
 	formData.Set("url", link.URL)
 	formData.Set("gid", strconv.FormatInt(link.Gid, 10))
 	formData.Set("description", link.Description)
+	formData.Set("unlisted", strconv.Itoa(int(link.Unlisted)))
+	formData.Set("public", strconv.Itoa(int(link.Public)))
+	formData.Set("private", strconv.Itoa(int(link.Private)))
+	for _, alias := range link.Aliases {
+		formData.Add("aliases", alias)
+	}
+	for _, tag := range link.Tags {
+		formData.Add("tags[]", tag)
+	}
 
 	req, err := http.NewRequest("PUT", fmt.Sprintf("%s/golinks", c.HostURL), strings.NewReader(formData.Encode()))
 	if err != nil {
