@@ -2,6 +2,8 @@ package provider
 
 import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	dsschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	rsschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -55,4 +57,58 @@ var RedirectHitsAttrTypes = map[string]attr.Type{
 var GeolinkAttrTypes = map[string]attr.Type{
 	"location": types.StringType,
 	"url":      types.StringType,
+}
+
+var UserResourceSchemaAttributes = map[string]rsschema.Attribute{
+	"uid": rsschema.Int64Attribute{
+		Computed:    true,
+		Description: "The user ID.",
+	},
+	"first_name": rsschema.StringAttribute{
+		Computed:    true,
+		Description: "The user's first name.",
+	},
+	"last_name": rsschema.StringAttribute{
+		Computed:    true,
+		Description: "The user's last name.",
+	},
+	"username": rsschema.StringAttribute{
+		Computed:    true,
+		Description: "The user's username.",
+	},
+	"email": rsschema.StringAttribute{
+		Computed:    true,
+		Description: "The user's email address.",
+	},
+	"user_image_url": rsschema.StringAttribute{
+		Computed:    true,
+		Description: "URL to the user's profile image.",
+	},
+}
+
+var UserDataSourceSchemaAttributes = map[string]dsschema.Attribute{
+	"uid": dsschema.Int64Attribute{
+		Computed:    true,
+		Description: "The user ID.",
+	},
+	"first_name": dsschema.StringAttribute{
+		Computed:    true,
+		Description: "The user's first name.",
+	},
+	"last_name": dsschema.StringAttribute{
+		Computed:    true,
+		Description: "The user's last name.",
+	},
+	"username": dsschema.StringAttribute{
+		Computed:    true,
+		Description: "The user's username.",
+	},
+	"email": dsschema.StringAttribute{
+		Computed:    true,
+		Description: "The user's email address.",
+	},
+	"user_image_url": dsschema.StringAttribute{
+		Computed:    true,
+		Description: "URL to the user's profile image.",
+	},
 }

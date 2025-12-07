@@ -20,8 +20,8 @@ resource "golinks_link" "this" {
   unlisted    = false
   public      = false
   private     = false
-  format      = true
-  hyphens     = true
+  format      = false
+  hyphens     = false
   tags        = ["testing", "addme", "addanother"]
   #   geolinks = [
   #     {

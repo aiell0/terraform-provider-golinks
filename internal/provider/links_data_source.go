@@ -114,29 +114,9 @@ func (d *linksDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 							Computed: true,
 						},
 						"user": schema.SingleNestedAttribute{
-							Computed: true,
-							Attributes: map[string]schema.Attribute{
-								"uid": schema.Int64Attribute{
-									Computed: true,
-								},
-								"first_name": schema.StringAttribute{
-									Computed: true,
-								},
-								"last_name": schema.StringAttribute{
-									Computed: true,
-								},
-								"username": schema.StringAttribute{
-									Computed: true,
-								},
-								"email": schema.StringAttribute{
-									Computed: true,
-								},
-								"user_image_url": schema.StringAttribute{
-									Computed: true,
-								},
-							},
-						},
-						"url": schema.StringAttribute{
+							Computed:   true,
+							Attributes: UserDataSourceSchemaAttributes,
+						}, "url": schema.StringAttribute{
 							Computed: true,
 						},
 						"name": schema.StringAttribute{
@@ -248,15 +228,7 @@ func (d *linksDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 
 	// Map response body to model
 	for _, golink := range golinksResp.Results {
-		// Map user
-		userObj, diags := types.ObjectValueFrom(ctx, map[string]attr.Type{
-			"uid":            types.Int64Type,
-			"first_name":     types.StringType,
-			"last_name":      types.StringType,
-			"username":       types.StringType,
-			"email":          types.StringType,
-			"user_image_url": types.StringType,
-		}, UserModel{
+		userObj, diags := types.ObjectValueFrom(ctx, UserAttrTypes, UserModel{
 			Uid:          types.Int64Value(golink.User.Uid),
 			FirstName:    types.StringValue(golink.User.FirstName),
 			LastName:     types.StringValue(golink.User.LastName),
@@ -269,13 +241,7 @@ func (d *linksDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 			return
 		}
 
-		// Map redirect hits
-		redirectHitsObj, diags := types.ObjectValueFrom(ctx, map[string]attr.Type{
-			"daily":   types.Int64Type,
-			"weekly":  types.Int64Type,
-			"monthly": types.Int64Type,
-			"alltime": types.Int64Type,
-		}, RedirectHitsModel{
+		redirectHitsObj, diags := types.ObjectValueFrom(ctx, RedirectHitsAttrTypes, RedirectHitsModel{
 			Daily:   types.Int64Value(golink.RedirectHits.Daily),
 			Weekly:  types.Int64Value(golink.RedirectHits.Weekly),
 			Monthly: types.Int64Value(golink.RedirectHits.Monthly),

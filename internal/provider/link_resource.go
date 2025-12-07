@@ -173,32 +173,7 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"user": schema.SingleNestedAttribute{
 				Computed:    true,
 				Description: "The user who created the golink.",
-				Attributes: map[string]schema.Attribute{
-					"uid": schema.Int64Attribute{
-						Computed:    true,
-						Description: "The user ID.",
-					},
-					"first_name": schema.StringAttribute{
-						Computed:    true,
-						Description: "The user's first name.",
-					},
-					"last_name": schema.StringAttribute{
-						Computed:    true,
-						Description: "The user's last name.",
-					},
-					"username": schema.StringAttribute{
-						Computed:    true,
-						Description: "The user's username.",
-					},
-					"email": schema.StringAttribute{
-						Computed:    true,
-						Description: "The user's email address.",
-					},
-					"user_image_url": schema.StringAttribute{
-						Computed:    true,
-						Description: "URL to the user's profile image.",
-					},
-				},
+				Attributes:  UserResourceSchemaAttributes,
 			},
 		},
 	}
@@ -225,13 +200,7 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	link.Hyphens = BoolToInt(plan.Hyphens.ValueBool())
 	link.Format = BoolToInt(plan.Format.ValueBool())
 
-	var tags []string
-	// for _, t := range plan.Tags {
-	// 	tags = append(tags, t)
-	// }
-	// link.Tags = tags
-	tags = append(tags, plan.Tags...)
-	link.Tags = tags
+	link.Tags = append(link.Tags, plan.Tags...)
 
 	var aliases []string
 	if !plan.Aliases.IsNull() && !plan.Aliases.IsUnknown() {
@@ -342,23 +311,6 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		"link": string(linkJSON),
 	})
 	tflog.Debug(ctx, strconv.FormatInt(plan.Gid.ValueInt64(), 10))
-
-	// var aliases []string
-	// if !plan.Aliases.IsNull() && !plan.Aliases.IsUnknown() {
-	// 	diags := plan.Aliases.ElementsAs(ctx, &aliases, false)
-	// 	resp.Diagnostics.Append(diags...)
-	// 	if resp.Diagnostics.HasError() {
-	// 		return
-	// 	}
-	// }
-	//
-	// var geolinks []golinks.Geolink
-	// for _, gl := range plan.Geolinks {
-	// 	geolinks = append(geolinks, golinks.Geolink{
-	// 		Location: gl.Location,
-	// 		URL:      gl.URL,
-	// 	})
-	// }
 
 	// Update link
 	_, err := r.client.UpdateLink(ctx, link)
