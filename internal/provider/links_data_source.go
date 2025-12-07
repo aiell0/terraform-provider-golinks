@@ -64,8 +64,8 @@ type golinkModel struct {
 	Description  types.String `tfsdk:"description"`
 	Tags         []tagModel   `tfsdk:"tags"`
 	Unlisted     types.Int32  `tfsdk:"unlisted"`
-	VariableLink types.Int64  `tfsdk:"variable_link"`
-	Pinned       types.Int64  `tfsdk:"pinned"`
+	VariableLink types.Int32  `tfsdk:"variable_link"`
+	Pinned       types.Int32  `tfsdk:"pinned"`
 	RedirectHits types.Object `tfsdk:"redirect_hits"`
 	CreatedAt    types.Int64  `tfsdk:"created_at"`
 	UpdatedAt    types.Int64  `tfsdk:"updated_at"`
@@ -225,7 +225,7 @@ func (d *linksDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 func (d *linksDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state golinksDataSourceModel
 
-	golinksResp, err := d.client.GetGolinks()
+	golinksResp, err := d.client.GetGolinks(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read GoLinks",
@@ -318,8 +318,8 @@ func (d *linksDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 			Name:         types.StringValue(golink.Name),
 			Description:  types.StringValue(golink.Description),
 			Unlisted:     types.Int32Value(golink.Unlisted),
-			VariableLink: types.Int64Value(golink.VariableLink),
-			Pinned:       types.Int64Value(golink.Pinned),
+			VariableLink: types.Int32Value(golink.VariableLink),
+			Pinned:       types.Int32Value(golink.Pinned),
 			RedirectHits: redirectHitsObj,
 			CreatedAt:    types.Int64Value(golink.CreatedAt),
 			UpdatedAt:    types.Int64Value(golink.UpdatedAt),

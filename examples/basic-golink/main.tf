@@ -20,7 +20,15 @@ resource "golinks_link" "this" {
   unlisted    = false
   public      = false
   private     = false
-  # tags        = ["testing", "addme", "addanother"]
+  format      = true
+  hyphens     = true
+  tags        = ["testing", "addme", "addanother"]
+  #   geolinks = [
+  #     {
+  #       location = "US-CA"
+  #       url      = "https://drive.google.com/drive/California"
+  #     }
+  #   ]
 }
 
 # output "golinks" {

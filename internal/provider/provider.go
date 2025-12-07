@@ -118,7 +118,7 @@ func (p *golinksProvider) Configure(ctx context.Context, req provider.ConfigureR
 	tflog.Debug(ctx, "Creating GoLinks client")
 
 	// Create a new GoLinks client using the configuration values
-	client, err := client.NewClient(&token)
+	client, err := client.NewClient(ctx, &token)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Create GoLinks API Client",

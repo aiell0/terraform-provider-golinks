@@ -9,6 +9,7 @@ import (
 
 	"terraform-provider-golinks/internal/client"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -33,32 +34,32 @@ type linkResource struct {
 
 // golinkResourceModel maps the resource schema data.
 type linkResourceModel struct {
-	ID          types.String `tfsdk:"id"`
-	Gid         types.Int64  `tfsdk:"gid"`
-	Cid         types.Int64  `tfsdk:"cid"`
-	LastUpdated types.String `tfsdk:"last_updated"`
-	// User         UserModel         `tfsdk:"user"`
-	URL         types.String `tfsdk:"url"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	Tags        []string     `tfsdk:"tags"`
-	Unlisted    types.Bool   `tfsdk:"unlisted"`
-	Private     types.Bool   `tfsdk:"private"`
-	Public      types.Bool   `tfsdk:"public"`
-	// VariableLink types.Int64  `tfsdk:"variable_link"`
-	// Pinned       types.Int64  `tfsdk:"pinned"`
-	// RedirectHits RedirectHitsModel `tfsdk:"redirect_hits"`
-	Aliases types.List `tfsdk:"aliases"`
-	// Multilinks types.List     `tfsdk:"multilinks"`
-	Geolinks  []GeolinkModel `tfsdk:"geolinks"`
-	CreatedAt types.Int64    `tfsdk:"created_at"`
-	UpdatedAt types.Int64    `tfsdk:"updated_at"`
+	ID           types.String `tfsdk:"id"`
+	Gid          types.Int64  `tfsdk:"gid"`
+	Cid          types.Int64  `tfsdk:"cid"`
+	LastUpdated  types.String `tfsdk:"last_updated"`
+	User         types.Object `tfsdk:"user"`
+	URL          types.String `tfsdk:"url"`
+	Name         types.String `tfsdk:"name"`
+	Description  types.String `tfsdk:"description"`
+	Tags         []string     `tfsdk:"tags"`
+	Unlisted     types.Bool   `tfsdk:"unlisted"`
+	Private      types.Bool   `tfsdk:"private"`
+	Public       types.Bool   `tfsdk:"public"`
+	VariableLink types.Bool   `tfsdk:"variable_link"`
+	Pinned       types.Bool   `tfsdk:"pinned"`
+	Format       types.Bool   `tfsdk:"format"`
+	Hyphens      types.Bool   `tfsdk:"hyphens"`
+	Aliases      types.List   `tfsdk:"aliases"`
+	Geolinks     types.List   `tfsdk:"geolinks"`
+	CreatedAt    types.Int64  `tfsdk:"created_at"`
+	UpdatedAt    types.Int64  `tfsdk:"updated_at"`
 }
 
 type UserModel struct {
 	Uid          types.Int64  `tfsdk:"uid"`
-	firstName    types.String `tfsdk:"first_name"`
-	lastName     types.String `tfsdk:"last_name"`
+	FirstName    types.String `tfsdk:"first_name"`
+	LastName     types.String `tfsdk:"last_name"`
 	Username     types.String `tfsdk:"username"`
 	Email        types.String `tfsdk:"email"`
 	UserImageUrl types.String `tfsdk:"user_image_url"`
@@ -78,8 +79,34 @@ type TagModel struct {
 
 // geolinkModel maps geolink data.
 type GeolinkModel struct {
-	Location string
-	URL      string
+	Location types.String `tfsdk:"location"`
+	URL      types.String `tfsdk:"url"`
+}
+
+var userAttrTypes = map[string]attr.Type{
+	"uid":            types.Int64Type,
+	"first_name":     types.StringType,
+	"last_name":      types.StringType,
+	"username":       types.StringType,
+	"email":          types.StringType,
+	"user_image_url": types.StringType,
+}
+
+var geolinkAttrTypes = map[string]attr.Type{
+	"location": types.StringType,
+	"url":      types.StringType,
+}
+
+func userToObject(user client.UserResponse) types.Object {
+	obj, _ := types.ObjectValue(userAttrTypes, map[string]attr.Value{
+		"uid":            types.Int64Value(user.Uid),
+		"first_name":     types.StringValue(user.FirstName),
+		"last_name":      types.StringValue(user.LastName),
+		"username":       types.StringValue(user.Username),
+		"email":          types.StringValue(user.Email),
+		"user_image_url": types.StringValue(user.UserImageURL),
+	})
+	return obj
 }
 
 // NewLinksResource is a helper function to simplify the provider implementation.
@@ -106,6 +133,14 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"last_updated": schema.StringAttribute{
 				Computed: true,
+			},
+			"variable_link": schema.BoolAttribute{
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+			},
+			"pinned": schema.BoolAttribute{
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
 			},
 			"cid": schema.Int64Attribute{
 				Computed:    true,
@@ -147,7 +182,19 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Computed:    true,
 				Description: "If true, the link can be accessed by people outside of your organization.",
-				Default:     booldefault.StaticBool(true),
+				Default:     booldefault.StaticBool(false),
+			},
+			"format": schema.BoolAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "If the value is true, invalid characters (e.g. punctuation) will be removed from the created go link name.",
+				Default:     booldefault.StaticBool(false),
+			},
+			"hyphens": schema.BoolAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "If the value is true, spaces will be replaced with hyphens in the go link name. If false, spaces will be removed. Requires format set to true.",
+				Default:     booldefault.StaticBool(false),
 			},
 			"aliases": schema.ListAttribute{
 				Optional:    true,
@@ -178,6 +225,36 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				Description: "Unix timestamp when the golink was last updated.",
 			},
+			"user": schema.SingleNestedAttribute{
+				Computed:    true,
+				Description: "The user who created the golink.",
+				Attributes: map[string]schema.Attribute{
+					"uid": schema.Int64Attribute{
+						Computed:    true,
+						Description: "The user ID.",
+					},
+					"first_name": schema.StringAttribute{
+						Computed:    true,
+						Description: "The user's first name.",
+					},
+					"last_name": schema.StringAttribute{
+						Computed:    true,
+						Description: "The user's last name.",
+					},
+					"username": schema.StringAttribute{
+						Computed:    true,
+						Description: "The user's username.",
+					},
+					"email": schema.StringAttribute{
+						Computed:    true,
+						Description: "The user's email address.",
+					},
+					"user_image_url": schema.StringAttribute{
+						Computed:    true,
+						Description: "URL to the user's profile image.",
+					},
+				},
+			},
 		},
 	}
 }
@@ -201,7 +278,7 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Generate API request body from plan
-	var link client.CreateLink
+	var link client.CreateLinkRequest
 	link.URL = plan.URL.ValueString()
 	link.Name = plan.Name.ValueString()
 	link.Description = plan.Description.ValueString()
@@ -223,22 +300,25 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	} else {
 		link.Public = 0
 	}
-	link.Format = 0
-	link.Hyphens = 0
-
-	// var tags []TagModel
-	// for _, t := range plan.Tags {
-	// 	tags = append(tags, TagModel{
-	// 		Tid:  types.Int64Value(0), // can be anything
-	// 		Name: t.Name,
-	// 	})
-	// }
-	// link.Tags = tags
+	hyphens := plan.Hyphens.ValueBool()
+	if hyphens {
+		link.Hyphens = 1
+	} else {
+		link.Hyphens = 0
+	}
+	format := plan.Format.ValueBool()
+	if format {
+		link.Format = 1
+	} else {
+		link.Format = 0
+	}
 
 	var tags []string
-	for _, t := range plan.Tags {
-		tags = append(tags, t)
-	}
+	// for _, t := range plan.Tags {
+	// 	tags = append(tags, t)
+	// }
+	// link.Tags = tags
+	tags = append(tags, plan.Tags...)
 	link.Tags = tags
 
 	var aliases []string
@@ -252,16 +332,24 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	link.Aliases = aliases
 
 	var geolinks []client.Geolink
-	for _, gl := range plan.Geolinks {
-		geolinks = append(geolinks, client.Geolink{
-			Location: gl.Location,
-			URL:      gl.URL,
-		})
+	if !plan.Geolinks.IsNull() && !plan.Geolinks.IsUnknown() {
+		var geolinkModels []GeolinkModel
+		diags := plan.Geolinks.ElementsAs(ctx, &geolinkModels, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		for _, gl := range geolinkModels {
+			geolinks = append(geolinks, client.Geolink{
+				Location: gl.Location.ValueString(),
+				URL:      gl.URL.ValueString(),
+			})
+		}
 	}
 	link.Geolinks = geolinks
 
 	// Create new link
-	linkresponse, err := r.client.CreateLink(link)
+	linkresponse, err := r.client.CreateLink(ctx, link)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating link",
@@ -277,27 +365,13 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	plan.URL = types.StringValue(linkresponse.URL)
 	plan.Name = types.StringValue(linkresponse.Name)
 	plan.Description = types.StringValue(linkresponse.Description)
-	// unlistedint := linkresponse.Unlisted
-	// if unlistedint == 1 {
-	// 	plan.Unlisted = types.BoolValue(true)
-	// } else {
-	// 	plan.Unlisted = types.BoolValue(false)
-	// }
 	IntToBool(linkresponse.Unlisted, plan.Unlisted.ValueBoolPointer())
-	// plan.VariableLink = types.Int64Value(linkresponse.VariableLink)
-	// plan.Pinned = types.Int64Value(linkresponse.Pinned)
+	IntToBool(linkresponse.VariableLink, plan.VariableLink.ValueBoolPointer())
+	IntToBool(linkresponse.Pinned, plan.Pinned.ValueBoolPointer())
 	plan.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
 	plan.UpdatedAt = types.Int64Value(linkresponse.UpdatedAt)
 	plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
-	// plan.User = UserModel{
-	// 	Uid:          types.Int64Value(linkresponse.User.Uid),
-	// 	firstName:    types.StringValue(linkresponse.User.FirstName),
-	// 	lastName:     types.StringValue(linkresponse.User.LastName),
-	// 	Username:     types.StringValue(linkresponse.User.Username),
-	// 	Email:        types.StringValue(linkresponse.User.Email),
-	// 	UserImageUrl: types.StringValue(linkresponse.User.UserImageURL),
-	// }
-	//
+	plan.User = userToObject(linkresponse.User)
 	for index, tag := range linkresponse.Tags {
 		plan.Tags[index] = tag.Name
 	}
@@ -320,7 +394,7 @@ func (r *linkResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	linkresponse, err := r.client.GetLink(state.ID.ValueString())
+	linkresponse, err := r.client.GetLink(ctx, state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error retrieving link",
@@ -387,35 +461,23 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	var link client.CreateLink
-	// link.Uid = plan.User.Uid.ValueInt64()
+	var link client.UpdateLinkRequest
 	link.Gid = state.Gid.ValueInt64()
 	link.URL = plan.URL.ValueString()
 	link.Name = plan.Name.ValueString()
 	link.Description = plan.Description.ValueString()
 
 	var tags []string
-	for _, t := range plan.Tags {
-		tags = append(tags, t)
-	}
+	tags = append(tags, plan.Tags...)
 	link.Tags = tags
 
 	// Log the link structure
 	linkJSON, _ := json.MarshalIndent(link, "", "  ")
-	tflog.Debug(ctx, "CreateLink structure", map[string]interface{}{
+	tflog.Debug(ctx, "UpdateLinkRequest structure", map[string]interface{}{
 		"link": string(linkJSON),
 	})
 	tflog.Debug(ctx, strconv.FormatInt(plan.Gid.ValueInt64(), 10))
 
-	// Generate API request body from plan
-	// var tags []golinks.Tag
-	// for _, t := range plan.Tags {
-	// 	tags = append(tags, golinks.Tag{
-	// 		Tid:  t.Tid.ValueInt64(),
-	// 		Name: t.Name.String(),
-	// 	})
-	// }
-	//
 	// var aliases []string
 	// if !plan.Aliases.IsNull() && !plan.Aliases.IsUnknown() {
 	// 	diags := plan.Aliases.ElementsAs(ctx, &aliases, false)
@@ -434,7 +496,7 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	// }
 
 	// Update link
-	_, err := r.client.UpdateLink(link)
+	_, err := r.client.UpdateLink(ctx, link)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Golink",
@@ -443,7 +505,7 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	linkresponse, err := r.client.GetLink(state.ID.ValueString())
+	linkresponse, err := r.client.GetLink(ctx, state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error retrieving link",
@@ -458,24 +520,16 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	plan.URL = types.StringValue(linkresponse.URL)
 	plan.Name = types.StringValue(linkresponse.Name)
 	plan.Description = types.StringValue(linkresponse.Description)
-	// unlistedint := linkresponse.Unlisted
-	// if unlistedint == 1 {
-	// 	plan.Unlisted = types.BoolValue(true)
-	// } else {
-	// 	plan.Unlisted = types.BoolValue(false)
-	// }
-	IntToBool(linkresponse.Unlisted, state.Unlisted.ValueBoolPointer())
-	// plan.VariableLink = types.Int64Value(linkresponse.VariableLink)
-	// plan.Pinned = types.Int64Value(linkresponse.Pinned)
+	IntToBool(linkresponse.Unlisted, plan.Unlisted.ValueBoolPointer())
+	IntToBool(linkresponse.VariableLink, plan.VariableLink.ValueBoolPointer())
+	IntToBool(linkresponse.Pinned, plan.Pinned.ValueBoolPointer())
 	plan.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
 	plan.UpdatedAt = types.Int64Value(linkresponse.UpdatedAt)
-
 	plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
-
-	for _, tag := range linkresponse.Tags {
-		tags = append(tags, tag.Name)
+	plan.User = userToObject(linkresponse.User)
+	for index, tag := range linkresponse.Tags {
+		plan.Tags[index] = tag.Name
 	}
-	state.Tags = tags
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -494,7 +548,7 @@ func (r *linkResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	}
 
 	// Delete existing order
-	err := r.client.DeleteLink(state.Gid.ValueInt64())
+	err := r.client.DeleteLink(ctx, state.Gid.ValueInt64())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Golink",
