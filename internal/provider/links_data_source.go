@@ -62,37 +62,13 @@ type golinkModel struct {
 	URL          types.String `tfsdk:"url"`
 	Name         types.String `tfsdk:"name"`
 	Description  types.String `tfsdk:"description"`
-	Tags         []tagModel   `tfsdk:"tags"`
+	Tags         []TagModel   `tfsdk:"tags"`
 	Unlisted     types.Int32  `tfsdk:"unlisted"`
 	VariableLink types.Int32  `tfsdk:"variable_link"`
 	Pinned       types.Int32  `tfsdk:"pinned"`
 	RedirectHits types.Object `tfsdk:"redirect_hits"`
 	CreatedAt    types.Int64  `tfsdk:"created_at"`
 	UpdatedAt    types.Int64  `tfsdk:"updated_at"`
-}
-
-// userModel maps user data.
-type userModel struct {
-	Uid          types.Int64  `tfsdk:"uid"`
-	FirstName    types.String `tfsdk:"first_name"`
-	LastName     types.String `tfsdk:"last_name"`
-	Username     types.String `tfsdk:"username"`
-	Email        types.String `tfsdk:"email"`
-	UserImageURL types.String `tfsdk:"user_image_url"`
-}
-
-// tagModel maps tag data.
-type tagModel struct {
-	Tid  types.Int64  `tfsdk:"tid"`
-	Name types.String `tfsdk:"name"`
-}
-
-// redirectHitsModel maps redirect hits data.
-type redirectHitsModel struct {
-	Daily   types.Int64 `tfsdk:"daily"`
-	Weekly  types.Int64 `tfsdk:"weekly"`
-	Monthly types.Int64 `tfsdk:"monthly"`
-	Alltime types.Int64 `tfsdk:"alltime"`
 }
 
 // Schema defines the schema for the data source.
@@ -280,7 +256,7 @@ func (d *linksDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 			"username":       types.StringType,
 			"email":          types.StringType,
 			"user_image_url": types.StringType,
-		}, userModel{
+		}, UserModel{
 			Uid:          types.Int64Value(golink.User.Uid),
 			FirstName:    types.StringValue(golink.User.FirstName),
 			LastName:     types.StringValue(golink.User.LastName),
@@ -299,7 +275,7 @@ func (d *linksDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 			"weekly":  types.Int64Type,
 			"monthly": types.Int64Type,
 			"alltime": types.Int64Type,
-		}, redirectHitsModel{
+		}, RedirectHitsModel{
 			Daily:   types.Int64Value(golink.RedirectHits.Daily),
 			Weekly:  types.Int64Value(golink.RedirectHits.Weekly),
 			Monthly: types.Int64Value(golink.RedirectHits.Monthly),
@@ -327,7 +303,7 @@ func (d *linksDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 
 		// Map tags
 		for _, tag := range golink.Tags {
-			golinkState.Tags = append(golinkState.Tags, tagModel{
+			golinkState.Tags = append(golinkState.Tags, TagModel{
 				Tid:  types.Int64Value(tag.Tid),
 				Name: types.StringValue(tag.Name),
 			})

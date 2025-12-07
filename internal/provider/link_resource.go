@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"time"
 
 	"terraform-provider-golinks/internal/client"
 
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -54,59 +52,6 @@ type linkResourceModel struct {
 	Geolinks     types.List   `tfsdk:"geolinks"`
 	CreatedAt    types.Int64  `tfsdk:"created_at"`
 	UpdatedAt    types.Int64  `tfsdk:"updated_at"`
-}
-
-type UserModel struct {
-	Uid          types.Int64  `tfsdk:"uid"`
-	FirstName    types.String `tfsdk:"first_name"`
-	LastName     types.String `tfsdk:"last_name"`
-	Username     types.String `tfsdk:"username"`
-	Email        types.String `tfsdk:"email"`
-	UserImageUrl types.String `tfsdk:"user_image_url"`
-}
-
-type RedirectHitsModel struct {
-	Daily   types.Int64 `tfsdk:"daily"`
-	Weekly  types.Int64 `tfsdk:"weekly"`
-	Monthly types.Int64 `tfsdk:"monthly"`
-	AllTime types.Int64 `tfsdk:"all_time"`
-}
-
-type TagModel struct {
-	Tid  types.Int64  `tfsdk:"tid"`
-	Name types.String `tfsdk:"name"`
-}
-
-// geolinkModel maps geolink data.
-type GeolinkModel struct {
-	Location types.String `tfsdk:"location"`
-	URL      types.String `tfsdk:"url"`
-}
-
-var userAttrTypes = map[string]attr.Type{
-	"uid":            types.Int64Type,
-	"first_name":     types.StringType,
-	"last_name":      types.StringType,
-	"username":       types.StringType,
-	"email":          types.StringType,
-	"user_image_url": types.StringType,
-}
-
-var geolinkAttrTypes = map[string]attr.Type{
-	"location": types.StringType,
-	"url":      types.StringType,
-}
-
-func userToObject(user client.UserResponse) types.Object {
-	obj, _ := types.ObjectValue(userAttrTypes, map[string]attr.Value{
-		"uid":            types.Int64Value(user.Uid),
-		"first_name":     types.StringValue(user.FirstName),
-		"last_name":      types.StringValue(user.LastName),
-		"username":       types.StringValue(user.Username),
-		"email":          types.StringValue(user.Email),
-		"user_image_url": types.StringValue(user.UserImageURL),
-	})
-	return obj
 }
 
 // NewLinksResource is a helper function to simplify the provider implementation.
@@ -259,14 +204,6 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 	}
 }
 
-func IntToBool(i int32, o *bool) {
-	if i == 1 {
-		*o = true
-	} else {
-		*o = false
-	}
-}
-
 // Create a new resource.
 func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	// Retrieve values from plan
@@ -282,36 +219,11 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	link.URL = plan.URL.ValueString()
 	link.Name = plan.Name.ValueString()
 	link.Description = plan.Description.ValueString()
-	unlisted := plan.Unlisted.ValueBool()
-	if unlisted {
-		link.Unlisted = 1
-	} else {
-		link.Unlisted = 0
-	}
-	private := plan.Private.ValueBool()
-	if private {
-		link.Private = 1
-	} else {
-		link.Private = 0
-	}
-	public := plan.Public.ValueBool()
-	if public {
-		link.Public = 1
-	} else {
-		link.Public = 0
-	}
-	hyphens := plan.Hyphens.ValueBool()
-	if hyphens {
-		link.Hyphens = 1
-	} else {
-		link.Hyphens = 0
-	}
-	format := plan.Format.ValueBool()
-	if format {
-		link.Format = 1
-	} else {
-		link.Format = 0
-	}
+	link.Unlisted = BoolToInt(plan.Unlisted.ValueBool())
+	link.Private = BoolToInt(plan.Private.ValueBool())
+	link.Public = BoolToInt(plan.Public.ValueBool())
+	link.Hyphens = BoolToInt(plan.Hyphens.ValueBool())
+	link.Format = BoolToInt(plan.Format.ValueBool())
 
 	var tags []string
 	// for _, t := range plan.Tags {
@@ -358,23 +270,7 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	// Map response body to schema and populate Computed attribute values
-	plan.ID = types.StringValue(strconv.FormatInt(linkresponse.Gid, 10))
-	plan.Gid = types.Int64Value(linkresponse.Gid)
-	plan.Cid = types.Int64Value(linkresponse.Cid)
-	plan.URL = types.StringValue(linkresponse.URL)
-	plan.Name = types.StringValue(linkresponse.Name)
-	plan.Description = types.StringValue(linkresponse.Description)
-	IntToBool(linkresponse.Unlisted, plan.Unlisted.ValueBoolPointer())
-	IntToBool(linkresponse.VariableLink, plan.VariableLink.ValueBoolPointer())
-	IntToBool(linkresponse.Pinned, plan.Pinned.ValueBoolPointer())
-	plan.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
-	plan.UpdatedAt = types.Int64Value(linkresponse.UpdatedAt)
-	plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
-	plan.User = userToObject(linkresponse.User)
-	for index, tag := range linkresponse.Tags {
-		plan.Tags[index] = tag.Name
-	}
+	MapLinkResponseToModel(linkresponse, &plan, true)
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, plan)
@@ -403,38 +299,7 @@ func (r *linkResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	// Map response body to schema and populate Computed attribute values
-	state.ID = types.StringValue(strconv.FormatInt(linkresponse.Gid, 10))
-	state.Gid = types.Int64Value(linkresponse.Gid)
-	state.Cid = types.Int64Value(linkresponse.Cid)
-	state.URL = types.StringValue(linkresponse.URL)
-	state.Name = types.StringValue(linkresponse.Name)
-	state.Description = types.StringValue(linkresponse.Description)
-	// unlistedint := linkresponse.Unlisted
-	// if unlistedint == 1 {
-	// 	state.Unlisted = types.BoolValue(true)
-	// } else {
-	// 	state.Unlisted = types.BoolValue(false)
-	// }
-	IntToBool(linkresponse.Unlisted, state.Unlisted.ValueBoolPointer())
-	// state.VariableLink = types.Int64Value(linkresponse.VariableLink)
-	// state.Pinned = types.Int64Value(linkresponse.Pinned)
-	state.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
-	state.UpdatedAt = types.Int64Value(linkresponse.UpdatedAt)
-	// plan.User = UserModel{
-	// 	Uid:          types.Int64Value(linkresponse.User.Uid),
-	// 	firstName:    types.StringValue(linkresponse.User.FirstName),
-	// 	lastName:     types.StringValue(linkresponse.User.LastName),
-	// 	Username:     types.StringValue(linkresponse.User.Username),
-	// 	Email:        types.StringValue(linkresponse.User.Email),
-	// 	UserImageUrl: types.StringValue(linkresponse.User.UserImageURL),
-	// }
-	//
-	var tags []string
-	for _, tag := range linkresponse.Tags {
-		tags = append(tags, tag.Name)
-	}
-	state.Tags = tags
+	MapLinkResponseToModel(linkresponse, &state, false)
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, state)
@@ -514,22 +379,7 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	plan.ID = types.StringValue(strconv.FormatInt(linkresponse.Gid, 10))
-	plan.Gid = types.Int64Value(linkresponse.Gid)
-	plan.Cid = types.Int64Value(linkresponse.Cid)
-	plan.URL = types.StringValue(linkresponse.URL)
-	plan.Name = types.StringValue(linkresponse.Name)
-	plan.Description = types.StringValue(linkresponse.Description)
-	IntToBool(linkresponse.Unlisted, plan.Unlisted.ValueBoolPointer())
-	IntToBool(linkresponse.VariableLink, plan.VariableLink.ValueBoolPointer())
-	IntToBool(linkresponse.Pinned, plan.Pinned.ValueBoolPointer())
-	plan.CreatedAt = types.Int64Value(linkresponse.CreatedAt)
-	plan.UpdatedAt = types.Int64Value(linkresponse.UpdatedAt)
-	plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
-	plan.User = userToObject(linkresponse.User)
-	for index, tag := range linkresponse.Tags {
-		plan.Tags[index] = tag.Name
-	}
+	MapLinkResponseToModel(linkresponse, &plan, true)
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
