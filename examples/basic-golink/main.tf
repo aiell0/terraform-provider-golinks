@@ -8,29 +8,21 @@ terraform {
 }
 
 provider "golinks" {
-  token = "ff26c97d4e4409b6fc13b1780795e05815fdb3421e5a986001fcf746e2f58010"
+  token = var.golinks_token
 }
 
-# data "golinks_links" "all" {}
-
 resource "golinks_link" "this" {
-  name        = "tftest2"
+  name        = "tftest"
   url         = "https://google.com"
-  description = "Update this againagain"
+  description = "test golink"
   unlisted    = false
   public      = false
   private     = false
   format      = false
   hyphens     = false
-  tags        = ["testing", "addme", "addanother"]
-  #   geolinks = [
-  #     {
-  #       location = "US-CA"
-  #       url      = "https://drive.google.com/drive/California"
-  #     }
-  #   ]
+  tags        = ["testing", "tag2"]
 }
 
-# output "golinks" {
-#   value = data.golinks_links.all
-# }
+output "golinks" {
+  value = golinks_link.this.name
+}
