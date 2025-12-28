@@ -114,41 +114,53 @@ func (d *linksDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 							Computed: true,
 						},
 						"user": schema.SingleNestedAttribute{
-							Computed:   true,
-							Attributes: UserDataSourceSchemaAttributes,
-						}, "url": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Attributes:  UserDataSourceSchemaAttributes,
+							Description: "The user who created the GoLink.",
+						},
+						"url": schema.StringAttribute{
+							Computed:    true,
+							Description: "The destination URL the GoLink points to.",
 						},
 						"name": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The name of the GoLink.",
 						},
 						"description": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The description of the GoLink.",
 						},
 						"tags": schema.ListNestedAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The tags associated with the GoLink.",
 							NestedObject: schema.NestedAttributeObject{
 								Attributes: map[string]schema.Attribute{
 									"tid": schema.Int64Attribute{
-										Computed: true,
+										Computed:    true,
+										Description: "The unique ID of the tag.",
 									},
 									"name": schema.StringAttribute{
-										Computed: true,
+										Computed:    true,
+										Description: "The name of the tag.",
 									},
 								},
 							},
 						},
 						"unlisted": schema.Int64Attribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Indicates if the GoLink is unlisted.",
 						},
 						"variable_link": schema.Int64Attribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Indicates if the GoLink is a variable link.",
 						},
 						"pinned": schema.Int64Attribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Indicates if the GoLink is pinned.",
 						},
 						"redirect_hits": schema.SingleNestedAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The redirect hits statistics for the GoLink.",
 							Attributes: map[string]schema.Attribute{
 								"daily": schema.Int64Attribute{
 									Computed: true,
@@ -165,10 +177,12 @@ func (d *linksDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 							},
 						},
 						"created_at": schema.Int64Attribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The timestamp when the GoLink was created.",
 						},
 						"updated_at": schema.Int64Attribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The timestamp when the GoLink was last updated.",
 						},
 					},
 				},

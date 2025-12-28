@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	"terraform-provider-golinks/internal/client"
+
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -11,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"terraform-provider-golinks/internal/client"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -52,7 +53,9 @@ func (p *golinksProvider) Schema(_ context.Context, _ provider.SchemaRequest, re
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"token": schema.StringAttribute{
-				Optional: true,
+				Description: "API Token for authenticating with the GoLinks API.",
+				Optional:    true,
+				Sensitive:   true,
 			},
 		},
 	}

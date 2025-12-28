@@ -78,15 +78,18 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "The GoLink ID returned by the API.",
 			},
 			"last_updated": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The timestamp of the last update to the golink.",
 			},
 			"variable_link": schema.BoolAttribute{
-				Computed: true,
-				Default:  booldefault.StaticBool(false),
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+				Description: "Indicates if the link is a variable link.",
 			},
 			"pinned": schema.BoolAttribute{
-				Computed: true,
-				Default:  booldefault.StaticBool(false),
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+				Description: "Indicates if the link is pinned.",
 			},
 			"cid": schema.Int64Attribute{
 				Computed:    true,
