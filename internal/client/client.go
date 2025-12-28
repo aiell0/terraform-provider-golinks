@@ -59,6 +59,23 @@ func (c *Client) GetGolinks(ctx context.Context) (*GolinksResponse, error) {
 	return &resp, nil
 }
 
+func (c *Client) GetGolinksByName(ctx context.Context, name string) (*GolinksResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/golinks", c.HostURL), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	query := req.URL.Query()
+	query.Set("name", name)
+	req.URL.RawQuery = query.Encode()
+
+	var resp GolinksResponse
+	if err := c.doRequestJSON(req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 func buildCreateLinkFormData(link CreateLinkRequest) url.Values {
 	formData := url.Values{}
 	formData.Set("name", link.Name)
@@ -69,10 +86,10 @@ func buildCreateLinkFormData(link CreateLinkRequest) url.Values {
 	formData.Set("unlisted", strconv.Itoa(int(link.Unlisted)))
 	formData.Set("public", strconv.Itoa(int(link.Public)))
 	formData.Set("private", strconv.Itoa(int(link.Private)))
+	formData.Set("format", strconv.Itoa(int(link.Format)))
 	if link.Format == 1 {
 		formData.Set("hyphens", strconv.Itoa(int(link.Hyphens)))
 	}
-	formData.Set("format", strconv.Itoa(int(link.Format)))
 	for _, alias := range link.Aliases {
 		formData.Add("aliases", alias)
 	}
@@ -95,6 +112,10 @@ func buildUpdateLinkFormData(link UpdateLinkRequest) url.Values {
 	formData.Set("unlisted", strconv.Itoa(int(link.Unlisted)))
 	formData.Set("public", strconv.Itoa(int(link.Public)))
 	formData.Set("private", strconv.Itoa(int(link.Private)))
+	formData.Set("format", strconv.Itoa(int(link.Format)))
+	if link.Format == 1 {
+		formData.Set("hyphens", strconv.Itoa(int(link.Hyphens)))
+	}
 	for _, alias := range link.Aliases {
 		formData.Add("aliases", alias)
 	}

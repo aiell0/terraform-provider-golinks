@@ -23,6 +23,7 @@ var (
 	_ resource.Resource                = &linkResource{}
 	_ resource.ResourceWithConfigure   = &linkResource{}
 	_ resource.ResourceWithImportState = &linkResource{}
+	_ resource.ResourceWithModifyPlan  = &linkResource{}
 )
 
 // linksResource is the resource implementation.
@@ -111,8 +112,7 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"unlisted": schema.BoolAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "If true, the link is unlisted. If false (default), shared with everyone in your organization.",
-				Default:     booldefault.StaticBool(false),
+				Description: "If true, the link is unlisted. Private links are always unlisted.",
 			},
 			"private": schema.BoolAttribute{
 				Optional:    true,
@@ -133,7 +133,6 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Computed:    true,
 				Description: "If the value is true, invalid characters (e.g. punctuation) will be removed from the created go link name.",
-				Default:     booldefault.StaticBool(false),
 			},
 			"hyphens": schema.BoolAttribute{
 				Optional:    true,
@@ -179,6 +178,76 @@ func (r *linkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 	}
 }
 
+func (r *linkResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var plan linkResourceModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var config linkResourceModel
+	diags = req.Config.Get(ctx, &config)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	planUpdated := false
+
+	privateKnown := !plan.Private.IsNull() && !plan.Private.IsUnknown()
+	privateTrue := privateKnown && plan.Private.ValueBool()
+
+	if privateTrue {
+		configUnlistedKnown := !config.Unlisted.IsNull() && !config.Unlisted.IsUnknown()
+		if configUnlistedKnown && !config.Unlisted.ValueBool() {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("unlisted"),
+				"Private Links Must Be Unlisted",
+				"When `private` is true, the GoLinks API always sets `unlisted` to true. Please remove the explicit `unlisted = false` configuration or set it to true.",
+			)
+			return
+		}
+
+		if plan.Unlisted.IsNull() || plan.Unlisted.IsUnknown() || !plan.Unlisted.ValueBool() {
+			plan.Unlisted = types.BoolValue(true)
+			planUpdated = true
+		}
+	}
+
+	hyphensKnown := !plan.Hyphens.IsNull() && !plan.Hyphens.IsUnknown()
+	hyphensTrue := hyphensKnown && plan.Hyphens.ValueBool()
+
+	if hyphensTrue {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("hyphens"),
+			"Hyphens Not Supported",
+			"The GoLinks API currently ignores the `hyphens` flag, so the provider cannot manage it. Remove this attribute from configuration.",
+		)
+		return
+	}
+
+	formatKnown := !plan.Format.IsNull() && !plan.Format.IsUnknown()
+	formatTrue := formatKnown && plan.Format.ValueBool()
+	if formatTrue {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("format"),
+			"Format Not Supported",
+			"The GoLinks API currently ignores the `format` flag, so the provider cannot manage it. Remove this attribute from configuration.",
+		)
+		return
+	}
+
+	if planUpdated {
+		diags = resp.Plan.Set(ctx, plan)
+		resp.Diagnostics.Append(diags...)
+	}
+}
+
 // Create a new resource.
 func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	// Retrieve values from plan
@@ -194,11 +263,23 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	link.URL = plan.URL.ValueString()
 	link.Name = plan.Name.ValueString()
 	link.Description = plan.Description.ValueString()
-	link.Unlisted = BoolToInt(plan.Unlisted.ValueBool())
-	link.Private = BoolToInt(plan.Private.ValueBool())
-	link.Public = BoolToInt(plan.Public.ValueBool())
-	link.Hyphens = BoolToInt(plan.Hyphens.ValueBool())
-	link.Format = BoolToInt(plan.Format.ValueBool())
+
+	privateVal := !plan.Private.IsNull() && !plan.Private.IsUnknown() && plan.Private.ValueBool()
+	publicVal := !plan.Public.IsNull() && !plan.Public.IsUnknown() && plan.Public.ValueBool()
+	formatVal := !plan.Format.IsNull() && !plan.Format.IsUnknown() && plan.Format.ValueBool()
+	hyphensVal := !plan.Hyphens.IsNull() && !plan.Hyphens.IsUnknown() && plan.Hyphens.ValueBool()
+	unlistedVal := !plan.Unlisted.IsNull() && !plan.Unlisted.IsUnknown() && plan.Unlisted.ValueBool()
+
+	if privateVal && !unlistedVal {
+		unlistedVal = true
+		plan.Unlisted = types.BoolValue(true)
+	}
+
+	link.Unlisted = BoolToInt(unlistedVal)
+	link.Private = BoolToInt(privateVal)
+	link.Public = BoolToInt(publicVal)
+	link.Hyphens = BoolToInt(hyphensVal)
+	link.Format = BoolToInt(formatVal)
 
 	link.Tags = append(link.Tags, plan.Tags...)
 
@@ -242,6 +323,7 @@ func (r *linkResource) Create(ctx context.Context, req resource.CreateRequest, r
 	MapLinkResponseToModel(linkresponse, &plan, true)
 
 	// Set state to fully populated data
+
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -301,9 +383,53 @@ func (r *linkResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	link.Name = plan.Name.ValueString()
 	link.Description = plan.Description.ValueString()
 
+	privateVal := !plan.Private.IsNull() && !plan.Private.IsUnknown() && plan.Private.ValueBool()
+	publicVal := !plan.Public.IsNull() && !plan.Public.IsUnknown() && plan.Public.ValueBool()
+	formatVal := !plan.Format.IsNull() && !plan.Format.IsUnknown() && plan.Format.ValueBool()
+	hyphensVal := !plan.Hyphens.IsNull() && !plan.Hyphens.IsUnknown() && plan.Hyphens.ValueBool()
+	unlistedVal := !plan.Unlisted.IsNull() && !plan.Unlisted.IsUnknown() && plan.Unlisted.ValueBool()
+
+	if privateVal && !unlistedVal {
+		unlistedVal = true
+		plan.Unlisted = types.BoolValue(true)
+	}
+
+	link.Unlisted = BoolToInt(unlistedVal)
+	link.Private = BoolToInt(privateVal)
+	link.Public = BoolToInt(publicVal)
+	link.Format = BoolToInt(formatVal)
+	link.Hyphens = BoolToInt(hyphensVal)
+
 	var tags []string
 	tags = append(tags, plan.Tags...)
 	link.Tags = tags
+
+	var aliases []string
+	if !plan.Aliases.IsNull() && !plan.Aliases.IsUnknown() {
+		diags := plan.Aliases.ElementsAs(ctx, &aliases, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+	link.Aliases = aliases
+
+	var geolinks []client.Geolink
+	if !plan.Geolinks.IsNull() && !plan.Geolinks.IsUnknown() {
+		var geolinkModels []GeolinkModel
+		diags := plan.Geolinks.ElementsAs(ctx, &geolinkModels, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		for _, gl := range geolinkModels {
+			geolinks = append(geolinks, client.Geolink{
+				Location: gl.Location.ValueString(),
+				URL:      gl.URL.ValueString(),
+			})
+		}
+	}
+	link.Geolinks = geolinks
 
 	// Log the link structure
 	linkJSON, _ := json.MarshalIndent(link, "", "  ")

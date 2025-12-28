@@ -43,6 +43,8 @@ func MapLinkResponseToModel(resp *client.GolinkResponse, model *linkResourceMode
 	model.Unlisted = types.BoolValue(IntToBool(resp.Unlisted))
 	model.VariableLink = types.BoolValue(IntToBool(resp.VariableLink))
 	model.Pinned = types.BoolValue(IntToBool(resp.Pinned))
+	model.Format = types.BoolValue(IntToBool(resp.Format))
+	model.Hyphens = types.BoolValue(IntToBool(resp.Hyphens))
 	model.CreatedAt = types.Int64Value(resp.CreatedAt)
 	model.UpdatedAt = types.Int64Value(resp.UpdatedAt)
 	model.User = UserToObject(resp.User)

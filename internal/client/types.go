@@ -23,6 +23,8 @@ type UpdateLinkRequest struct {
 	Unlisted    int32     `json:"unlisted,omitempty"`
 	Private     int32     `json:"private,omitempty"`
 	Public      int32     `json:"public,omitempty"`
+	Format      int32     `json:"format,omitempty"`
+	Hyphens     int32     `json:"hyphens,omitempty"`
 	Aliases     []string  `json:"aliases,omitempty"`
 	Geolinks    []Geolink `json:"geolinks,omitempty"`
 }
@@ -71,6 +73,8 @@ type GolinkResponse struct {
 	Unlisted     int32                `json:"unlisted"`
 	VariableLink int32                `json:"variable_link"`
 	Pinned       int32                `json:"pinned"`
+	Format       int32                `json:"format"`
+	Hyphens      int32                `json:"hyphens"`
 	RedirectHits RedirectHitsResponse `json:"redirect_hits"`
 	CreatedAt    int64                `json:"created_at"`
 	UpdatedAt    int64                `json:"updated_at"`
