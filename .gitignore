@@ -4,6 +4,8 @@
 example.tf
 terraform.tfplan
 terraform.tfstate
+*.tfvars
+**/terraform.tfvars
 bin/
 dist/
 modules-dev/
