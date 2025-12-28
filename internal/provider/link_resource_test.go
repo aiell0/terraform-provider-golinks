@@ -12,7 +12,7 @@ func TestLinkResource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Create and Read testing
 			{
-				Config: providerConfig + `
+				Config: testAccProviderConfig(t) + `
 resource "golinks_link" "test" {
 	name = "testlink"
 	url = "https://google.com"
@@ -45,7 +45,7 @@ resource "golinks_link" "test" {
 			},
 			// Update and Read testing
 			{
-				Config: providerConfig + `
+				Config: testAccProviderConfig(t) + `
 resource "golinks_link" "test" {
 	name = "testlink2"
 	url = "https://google.com"
@@ -77,7 +77,7 @@ func TestLinkResourceOptionalAttributes(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + `
+				Config: testAccProviderConfig(t) + `
 resource "golinks_link" "options" {
 	name        = "testlink-options"
 	url         = "https://google.com"

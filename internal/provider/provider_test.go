@@ -1,21 +1,28 @@
 package provider
 
 import (
+	"fmt"
+	"os"
+	"testing"
+
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 )
 
-const (
-	// providerConfig is a shared configuration to combine with the actual
-	// test configuration so the HashiCups client is properly configured.
-	// It is also possible to use the HASHICUPS_ environment variables instead,
-	// such as updating the Makefile and running the testing through that tool.
-	providerConfig = `
+func testAccProviderConfig(t *testing.T) string {
+	t.Helper()
+
+	token := os.Getenv("GOLINKS_TOKEN")
+	if token == "" {
+		t.Skip("set GOLINKS_TOKEN to run acceptance tests")
+	}
+
+	return fmt.Sprintf(`
 provider "golinks" {
-  token = "ff26c97d4e4409b6fc13b1780795e05815fdb3421e5a986001fcf746e2f58010"
+  token = %q
 }
-`
-)
+`, token)
+}
 
 var (
 	// testAccProtoV6ProviderFactories are used to instantiate a provider during

@@ -59,7 +59,7 @@ func (c *Client) GetGolinks(ctx context.Context) (*GolinksResponse, error) {
 	return &resp, nil
 }
 
-func (c *Client) GetGolinksByName(ctx context.Context, name string) (*GolinksResponse, error) {
+func (c *Client) GetGolinksByName(ctx context.Context, name string) (*GolinkResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/golinks", c.HostURL), nil)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (c *Client) GetGolinksByName(ctx context.Context, name string) (*GolinksRes
 	query.Set("name", name)
 	req.URL.RawQuery = query.Encode()
 
-	var resp GolinksResponse
+	var resp GolinkResponse
 	if err := c.doRequestJSON(req, &resp); err != nil {
 		return nil, err
 	}

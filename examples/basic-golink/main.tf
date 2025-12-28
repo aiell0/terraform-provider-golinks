@@ -26,3 +26,8 @@ resource "golinks_link" "this" {
 output "golinks" {
   value = golinks_link.this.name
 }
+
+data "golinks_links" "all" {}
+data "golinks_link" "specific" {
+  name = golinks_link.this.name
+}

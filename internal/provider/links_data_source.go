@@ -19,7 +19,7 @@ var (
 )
 
 // LinksDataSource is a helper function to simplify the provider implementation.
-func NewLinksDataSource() datasource.DataSource {
+func LinksDataSource() datasource.DataSource {
 	return &linksDataSource{}
 }
 

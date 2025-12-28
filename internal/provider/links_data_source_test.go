@@ -12,7 +12,7 @@ func TestLinksDataSource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Read testing
 			{
-				Config: providerConfig + `data "golinks_links" "test" {}`,
+				Config: testAccProviderConfig(t) + `data "golinks_links" "test" {}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					// Verify number of links returned
 					resource.TestCheckResourceAttr("data.golinks_links.test", "results.#", "50"),
