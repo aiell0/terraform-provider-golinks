@@ -1,109 +1,41 @@
-name: release
+# Terraform Provider release workflow.
+name: Release
 
+# This GitHub action creates a release when a tag that matches the pattern
+# "v*" (e.g. v0.1.0) is created.
 on:
-  workflow_dispatch:
-    inputs:
-      versionNumber:
-        description: 'Release version number (v#.#.#)'
-        type: string
-        required: true
+  push:
+    tags:
+      - 'v*'
 
+# Releases need permissions to read and write the repository contents.
+# GitHub considers creating releases and uploading assets as writing contents.
 permissions:
-  contents: read # Changelog commit operations use service account PAT
-
-env:
-  CI_COMMIT_AUTHOR: aiell0
-  CI_COMMIT_EMAIL: lawrence.aiello@laiello.com
+  contents: write
 
 jobs:
-  major-version:
+  goreleaser:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.major-version.outputs.version }}
-    steps:
-      - id: major-version
-        run: echo "version=$(echo "${{ inputs.versionNumber }}" | cut -d. -f1)" >> "$GITHUB_OUTPUT"
-
-  changelog-version:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.changelog-version.outputs.version }}
-    steps:
-      - id: changelog-version
-        run: echo "version=$(echo "${{ inputs.versionNumber }}" | cut -c 2-)" >> "$GITHUB_OUTPUT"
-
-  changelog:
-    needs: changelog-version
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-          # Avoid persisting GITHUB_TOKEN credentials as they take priority over our service account PAT for `git push` operations
-          # More details: https://github.com/actions/checkout/blob/b4626ce19ce1106186ddf9bb20e706842f11a7c3/adrs/0153-checkout-v2.md#persist-credentials
-          persist-credentials: false
-      - name: Batch changes
-        uses: miniscruff/changie-action@5036dffa79ffc007110dc7f75eca7ef72780e147 # v2.1.0
-        with:
-          version: latest
-          args: batch ${{ needs.changelog-version.outputs.version }}
-      - name: Merge changes
-        uses: miniscruff/changie-action@5036dffa79ffc007110dc7f75eca7ef72780e147 # v2.1.0
-        with:
-          version: latest
-          args: merge
-      - name: Git push changelog
-        run: |
-          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
-          git config --global user.email "${{ env.CI_COMMIT_EMAIL }}"
-          git add .
-          git commit -a -m "Update changelog"
-          git push "https://${{ env.CI_COMMIT_AUTHOR }}:${{ secrets.TF_DEVEX_COMMIT_GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-
-  release-tag:
-    needs: [ changelog, major-version ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-          # Default input is the SHA that initially triggered the workflow. As we created a new commit in the previous job,
-          # to ensure we get the latest commit we use the ref for checkout: 'refs/heads/<branch_name>'
-          ref: ${{ github.ref }}
-          # Avoid persisting GITHUB_TOKEN credentials as they take priority over our service account PAT for `git push` operations
-          # More details: https://github.com/actions/checkout/blob/b4626ce19ce1106186ddf9bb20e706842f11a7c3/adrs/0153-checkout-v2.md#persist-credentials
-          persist-credentials: false
-
-      - name: Git push release tag
-        run: |
-          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
-          git config --global user.email "${{ env.CI_COMMIT_EMAIL }}"
-          
-          git tag "${{ inputs.versionNumber }}"
-          git tag -f "${{ needs.major-version.outputs.version }}" 
-          git push "https://${{ env.CI_COMMIT_AUTHOR }}:${{ secrets.TF_DEVEX_COMMIT_GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" "${{ inputs.versionNumber }}"
-          git push "https://${{ env.CI_COMMIT_AUTHOR }}:${{ secrets.TF_DEVEX_COMMIT_GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" -f "${{ needs.major-version.outputs.version }}"
-
-  release:
-    needs: [ changelog-version, changelog, release-tag ]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # Needed to create GitHub release
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
-          ref: ${{ inputs.versionNumber }}
+          # Allow goreleaser to access older tag information.
           fetch-depth: 0
-
-      - name: Generate Release Notes
-        run: |
-          cd .changes
-          sed -e "1{/# /d;}" -e "2{/^$/d;}" ${{ needs.changelog-version.outputs.version }}.md > /tmp/release-notes.txt
-
-      - name: GH Release
-        run: |
-          gh release create "${{ inputs.versionNumber }}" --notes-file /tmp/release-notes.txt --title "${{ inputs.versionNumber }}"
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6.3.0
+        id: import_gpg
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        with:
+          args: release --clean
         env:
+          # GitHub sets the GITHUB_TOKEN secret automatically.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
